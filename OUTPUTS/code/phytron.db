@@ -1,0 +1,53 @@
+# phytron.db
+# Phytron MCC-1 MINI-W-ETH database scaffold
+#
+# Notes:
+# - Address is currently embedded in phytron.proto payloads
+# - PORT must match st.cmd
+# - getPosition is partially evidenced
+# - other command payloads are placeholders pending protocol confirmation
+
+record(ai, "$(P)$(R)POS_RBV") {
+    field(DESC, "Phytron position readback")
+    field(DTYP, "stream")
+    field(INP,  "@phytron.proto getPosition $(PORT)")
+    field(SCAN, "1 second")
+    field(PREC, "0")
+    field(EGU,  "steps")
+}
+
+record(ai, "$(P)$(R)SPEED_RBV") {
+    field(DESC, "Phytron speed readback")
+    field(DTYP, "stream")
+    field(INP,  "@phytron.proto getSpeed $(PORT)")
+    field(SCAN, "2 second")
+    field(PREC, "0")
+    field(EGU,  "steps/s")
+}
+
+record(bo, "$(P)$(R)MOVE_PLUS") {
+    field(DESC, "Phytron jog/move plus")
+    field(DTYP, "stream")
+    field(OUT,  "@phytron.proto movePlus $(PORT)")
+    field(ZNAM, "Idle")
+    field(ONAM, "Move+")
+    field(HIGH, "0")
+}
+
+record(bo, "$(P)$(R)MOVE_MINUS") {
+    field(DESC, "Phytron jog/move minus")
+    field(DTYP, "stream")
+    field(OUT,  "@phytron.proto moveMinus $(PORT)")
+    field(ZNAM, "Idle")
+    field(ONAM, "Move-")
+    field(HIGH, "0")
+}
+
+record(bo, "$(P)$(R)STOP") {
+    field(DESC, "Phytron stop motion")
+    field(DTYP, "stream")
+    field(OUT,  "@phytron.proto stopMotion $(PORT)")
+    field(ZNAM, "Idle")
+    field(ONAM, "Stop")
+    field(HIGH, "0")
+}

@@ -1,0 +1,31 @@
+# OS
+Thumbs.db
+.DS_Store
+
+# Editor
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
+
+# Logs / temp
+*.log
+*.tmp
+temp/
+tmp/
+
+# Generated outputs
+OUTPUTS/generated/
+OUTPUTS/tmp/
+workspace/
+cache/
+
+# Secrets / local config
+.env
+*.key
+*.pem
+*.token
+
+# Optional: local-only config
+config.local.json

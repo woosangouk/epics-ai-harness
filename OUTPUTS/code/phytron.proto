@@ -1,0 +1,53 @@
+# phytron.proto
+# Phytron MCC-1 MINI-W-ETH StreamDevice protocol
+#
+# Commissioning-ready scaffold:
+# - Framed communication verified: STX=0x02, ETX=0x03
+# - Verified observed request: 02 30 58 50 32 30 52 03  -> "0XP20R"
+# - Verified observed response: 02 06 31 30 03
+# - Address '0' is the only currently evidenced working case
+# - getPosition is the strongest current candidate
+# - getSpeed / movePlus / moveMinus / stopMotion remain placeholders until
+#   their exact TX/RX bytes are confirmed from captures or manual
+
+Terminator = "";
+ExtraInput = Ignore;
+ReadTimeout = 1000;
+ReplyTimeout = 1000;
+LockTimeout = 5000;
+
+# Reply shape currently evidenced:
+#   STX + 1 status/control byte + ASCII integer + ETX
+
+getPosition {
+    # Verified TX frame candidate:
+    # 02 30 58 50 32 30 52 03
+    out "\x02" "0XP20R" "\x03";
+    # Verified RX frame example:
+    # 02 06 31 30 03
+    in  "\x02%*c%d\x03";
+}
+
+getSpeed {
+    # PLACEHOLDER - replace with real captured payload
+    out "\x02" "0XV20R" "\x03";
+    in  "\x02%*c%d\x03";
+}
+
+movePlus {
+    # PLACEHOLDER - replace with real captured payload
+    out "\x02" "0XP21R" "\x03";
+    @mismatch { }
+}
+
+moveMinus {
+    # PLACEHOLDER - replace with real captured payload
+    out "\x02" "0XP22R" "\x03";
+    @mismatch { }
+}
+
+stopMotion {
+    # PLACEHOLDER - replace with real captured payload
+    out "\x02" "0XH" "\x03";
+    @mismatch { }
+}
