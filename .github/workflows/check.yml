@@ -1,0 +1,37 @@
+name: Basic Check
+
+on:
+  push:
+    branches:
+      - main
+      - feature/**
+  pull_request:
+
+jobs:
+  basic-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check Python syntax
+        run: |
+          python -m py_compile scripts/prompt_builder.py
+          python -m py_compile scripts/run_task.py
+          python -m py_compile scripts/validate_epics.py
+          python -m py_compile scripts/watch_tasks.py
+
+      - name: Check required directories
+        run: |
+          test -d TASKS
+          test -d CONTEXT
+          test -d OUTPUTS
+          test -d scripts
+          test -d epics
+          test -d gui
