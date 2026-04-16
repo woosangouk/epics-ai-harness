@@ -2,7 +2,7 @@
 Thumbs.db
 .DS_Store
 
-# Editor
+# VS Code local settings
 .vscode/
 
 # Python
@@ -12,20 +12,20 @@ __pycache__/
 # Logs / temp
 *.log
 *.tmp
-temp/
 tmp/
-
-# Generated outputs
-OUTPUTS/generated/
-OUTPUTS/tmp/
-workspace/
+temp/
 cache/
 
-# Secrets / local config
+# Secrets
 .env
 *.key
 *.pem
 *.token
 
-# Optional: local-only config
-config.local.json
+# AI generated outputs
+OUTPUTS/docs/task_*
+OUTPUTS/docs/*response*.json
+
+# Keep useful outputs
+!OUTPUTS/code/
+!OUTPUTS/code/**
