@@ -28,10 +28,10 @@ jobs:
           python -m py_compile scripts/watch_tasks.py
 
       - name: Check required directories
-        run: |
-          test -d TASKS
-          test -d CONTEXT
-          test -d OUTPUTS
-          test -d scripts
-          test -d epics
-          test -d gui
+  run: |
+    pwd
+    ls -la
+    for d in TASKS CONTEXT OUTPUTS scripts epics gui; do
+      echo "Checking $d"
+      test -d "$d" || { echo "Missing directory: $d"; exit 1; }
+    done
