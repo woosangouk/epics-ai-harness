@@ -28,18 +28,18 @@ jobs:
           python -m py_compile scripts/watch_tasks.py
 
       - name: Check required directories
-          run: |
-            pwd
-            ls -la
-            echo "Checking TASKS"
-            test -d TASKS
-            echo "Checking CONTEXT"
-            test -d CONTEXT
-            echo "Checking OUTPUTS"
-            test -d OUTPUTS
-            echo "Checking scripts"
-            test -d scripts
-            echo "Checking epics"
-            test -d epics
-            echo "Checking gui"
-            test -d gui
+        run: |
+          pwd
+          ls -la
+          echo "Checking TASKS"
+          test -d TASKS
+          echo "Checking CONTEXT"
+          test -d CONTEXT
+          echo "Checking OUTPUTS"
+          test -d OUTPUTS
+          echo "Checking scripts"
+          test -d scripts
+          echo "Checking epics"
+          test -d epics
+          echo "Checking gui"
+          test -d gui
