@@ -31,7 +31,15 @@ jobs:
   run: |
     pwd
     ls -la
-    for d in TASKS CONTEXT OUTPUTS scripts epics gui; do
-      echo "Checking $d"
-      test -d "$d" || { echo "Missing directory: $d"; exit 1; }
-    done
+    echo "Checking TASKS"
+    test -d TASKS
+    echo "Checking CONTEXT"
+    test -d CONTEXT
+    echo "Checking OUTPUTS"
+    test -d OUTPUTS
+    echo "Checking scripts"
+    test -d scripts
+    echo "Checking epics"
+    test -d epics
+    echo "Checking gui"
+    test -d gui
