@@ -57,3 +57,7 @@ Generated files must include comments indicating:
 - Keep code modular
 - Keep comments clear
 - Make validation and debugging easy
+
+
+Trigger CI on feature branch
+
