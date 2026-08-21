@@ -1,0 +1,55 @@
+name: tmp-hwp-build-v106
+
+on:
+  push:
+    branches:
+      - tmp-hwp-build-v104
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch HWP writer
+        run: git clone --depth 1 https://github.com/yuyu04/hwpkit.git /tmp/hwpkit
+
+      - name: Build corrected HWP
+        run: node tmp_hwp_build/build_v106.mjs 2> build.log
+
+      - name: Round-trip read validation
+        run: |
+          node /tmp/hwpkit/scripts/hwp-read.mjs KLS_LLRF_Cavity_Tuner_Internal_Report_V1.0.6.hwp > roundtrip.txt
+          test -s roundtrip.txt
+          grep -q "KLS LLRF" roundtrip.txt
+          grep -q "INTERNAL REPORT" roundtrip.txt
+          grep -q "목    차" roundtrip.txt
+          grep -q "PHYTRON MCC-1" roundtrip.txt
+          grep -q "STEP_REF" roundtrip.txt
+          grep -q "T0" roundtrip.txt
+          grep -q "결론 및 향후 수행 항목" roundtrip.txt
+
+      - name: Preview validation
+        run: |
+          mkdir -p preview
+          node /tmp/hwpkit/scripts/hwp-preview.mjs KLS_LLRF_Cavity_Tuner_Internal_Report_V1.0.6.hwp preview --png --pages 1-12 --scale 1.5
+          test -n "$(find preview -type f | head -n 1)"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KLS_LLRF_Cavity_Tuner_Internal_Report_V1.0.6
+          path: |
+            KLS_LLRF_Cavity_Tuner_Internal_Report_V1.0.6.hwp
+            build.log
+            roundtrip.txt
+            v106_page1.svg
+            v106_page2.svg
+            v106_page3.svg
+            v106_page4.svg
+            preview/
+          if-no-files-found: error
