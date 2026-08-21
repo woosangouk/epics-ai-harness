@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - tmp-hwp-build-v104
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build:
