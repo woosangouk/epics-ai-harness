@@ -29,6 +29,11 @@ jobs:
           if old not in s:
               raise SystemExit('pageBreak source pattern not found')
           s = s.replace(old, new)
+          c1 = "chapter('c1','1. 서론');"
+          c1_new = "chapter('c1','1. 서론');\ntry { doc.applyParaFormat(SEC, headingParas.get('c1'), JSON.stringify({pageBreakBefore:true,keepWithNext:true})); } catch(e) {}"
+          if c1 not in s:
+              raise SystemExit('c1 heading source pattern not found')
+          s = s.replace(c1, c1_new, 1)
           p.write_text(s, encoding='utf-8')
           PY
 
