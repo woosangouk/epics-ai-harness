@@ -18,29 +18,78 @@ jobs:
       - name: Fetch HWP writer
         run: git clone --depth 1 https://github.com/yuyu04/hwpkit.git /tmp/hwpkit
 
+      - name: Optimize report layout for HWP
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          src = Path('tmp_hwp_build/report.md')
+          s = src.read_text(encoding='utf-8')
+          marker = '\n# 1. 서론\n'
+          if marker in s:
+              pre, body = s.split(marker, 1)
+              body = '# 1. 서론\n' + body
+              body = re.sub(r'^## (\d+\.\d+\b.*)$', r'### \1', body, flags=re.M)
+              body = re.sub(r'^# (\d+\. .*)$', r'## \1', body, flags=re.M)
+              s = pre + '\n' + body
+          lines = s.splitlines()
+          out = []
+          i = 0
+          while i < len(lines):
+              line = lines[i]
+              if line.strip().startswith('|') and line.strip().endswith('|'):
+                  tbl = []
+                  j = i
+                  while j < len(lines) and lines[j].strip().startswith('|') and lines[j].strip().endswith('|'):
+                      tbl.append(lines[j])
+                      j += 1
+                  rows = [[c.strip() for c in r.strip().strip('|').split('|')] for r in tbl]
+                  n = max((len(r) for r in rows), default=0)
+                  if n > 2 and len(rows) >= 2:
+                      header = rows[0] + [''] * (n - len(rows[0]))
+                      h1 = header[0].replace('**', '')
+                      hrest = ' / '.join(x.replace('**', '') for x in header[1:] if x)
+                      out.append(f'| **{h1}** | **{hrest}** |')
+                      out.append('|---|---|')
+                      for r in rows[2:]:
+                          r = r + [''] * (n - len(r))
+                          rest = '; '.join(x for x in r[1:] if x)
+                          out.append(f'| {r[0]} | {rest} |')
+                  else:
+                      out.extend(tbl)
+                  i = j
+              else:
+                  out.append(line)
+                  i += 1
+          s = '\n'.join(out) + '\n'
+          s = re.sub(r'\n{3,}', '\n\n', s)
+          Path('tmp_hwp_build/report_v105.md').write_text(s, encoding='utf-8')
+          PY
+
       - name: Build HWP
         run: |
-          node /tmp/hwpkit/scripts/hwp-write.mjs tmp_hwp_build/report.md KLS_LLRF_Cavity_Tuner_Internal_Report_V1.0.4.hwp
+          node /tmp/hwpkit/scripts/hwp-write.mjs tmp_hwp_build/report_v105.md KLS_LLRF_Cavity_Tuner_Internal_Report_V1.0.5.hwp
 
       - name: Round-trip read validation
         run: |
-          node /tmp/hwpkit/scripts/hwp-read.mjs KLS_LLRF_Cavity_Tuner_Internal_Report_V1.0.4.hwp > roundtrip.txt
+          node /tmp/hwpkit/scripts/hwp-read.mjs KLS_LLRF_Cavity_Tuner_Internal_Report_V1.0.5.hwp > roundtrip.txt
           test -s roundtrip.txt
           grep -q "KLS LLRF" roundtrip.txt
           grep -q "PHYTRON MCC-1" roundtrip.txt
+          grep -q "STOP" roundtrip.txt
 
       - name: Preview validation
         run: |
           mkdir -p preview
-          node /tmp/hwpkit/scripts/hwp-preview.mjs KLS_LLRF_Cavity_Tuner_Internal_Report_V1.0.4.hwp preview --pages 1-3
+          node /tmp/hwpkit/scripts/hwp-preview.mjs KLS_LLRF_Cavity_Tuner_Internal_Report_V1.0.5.hwp preview --pages 1-5
           test -n "$(find preview -type f | head -n 1)"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KLS_LLRF_Cavity_Tuner_Internal_Report_V1.0.4
+          name: KLS_LLRF_Cavity_Tuner_Internal_Report_V1.0.5
           path: |
-            KLS_LLRF_Cavity_Tuner_Internal_Report_V1.0.4.hwp
+            KLS_LLRF_Cavity_Tuner_Internal_Report_V1.0.5.hwp
             roundtrip.txt
             preview/
           if-no-files-found: error
