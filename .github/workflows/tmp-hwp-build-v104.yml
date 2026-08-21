@@ -31,7 +31,20 @@ jobs:
           s = s.replace("'Left'", "'left'")
           s = s.replace("'Right'", "'right'")
 
-          # Use the HWP-native paragraph pageBreakBefore property.
+          # Every ordinary paragraph explicitly clears pageBreakBefore so a
+          # break applied to one paragraph is not inherited by later splits.
+          old_para = "const para = { lineSpacing: LINE_SPACING, lineSpacingType: 'Percent', spacingBefore: before, spacingAfter: after };"
+          # build_v106 has a custom fmtPara, patch its JSON object directly.
+          custom_para = "const para = {lineSpacing:line,lineSpacingType:'Percent',spacingBefore:before,spacingAfter:after,marginLeft:left,marginRight:right,indent};"
+          custom_para_new = "const para = {lineSpacing:line,lineSpacingType:'Percent',spacingBefore:before,spacingAfter:after,marginLeft:left,marginRight:right,indent,pageBreakBefore:false};"
+          if custom_para in s:
+              s = s.replace(custom_para, custom_para_new)
+          else:
+              # Fallback for whitespace-normalized source.
+              s = s.replace("indent})); } catch (e) {}", "indent,pageBreakBefore:false})); } catch (e) {}")
+
+          # Use the HWP-native paragraph pageBreakBefore property only on the
+          # first paragraph after pageBreak().
           s = s.replace('let pi = 0;\nconst headingParas', 'let pi = 0;\nlet forcePageBreak = false;\nconst headingParas')
           old_pb = """function pageBreak() {\n  const r = JSON.parse(doc.insertPageBreak(SEC, pi, 0));\n  pi = (r.paraIdx ?? (pi + 1));\n}"""
           new_pb = """function pageBreak() {\n  forcePageBreak = true;\n}"""
