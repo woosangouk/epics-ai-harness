@@ -18,22 +18,33 @@ jobs:
       - name: Fetch HWP writer
         run: git clone --depth 1 https://github.com/yuyu04/hwpkit.git /tmp/hwpkit
 
-      - name: Patch page transitions for stable pagination
+      - name: Patch HWP-native page breaks and alignment
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p = Path('tmp_hwp_build/build_v106.mjs')
           s = p.read_text(encoding='utf-8')
-          old = """function pageBreak() {\n  const r = JSON.parse(doc.insertPageBreak(SEC, pi, 0));\n  pi = (r.paraIdx ?? (pi + 1));\n}"""
-          new = """function pageBreak() {\n  let basePage = 0;\n  try { basePage = JSON.parse(doc.getCursorRect(SEC, Math.max(0, pi-1), 0)).pageIndex; } catch(e) {}\n  for (let guard=0; guard<120; guard++) {\n    let curPage = basePage;\n    try { curPage = JSON.parse(doc.getCursorRect(SEC, pi, 0)).pageIndex; } catch(e) {}\n    if (curPage > basePage) return;\n    writeP(' ', {size:PT(11), align:'Left', line:100, before:0, after:0});\n  }\n  throw new Error('natural page transition guard exceeded');\n}"""
-          if old not in s:
-              raise SystemExit('pageBreak source pattern not found')
-          s = s.replace(old, new)
-          c1 = "chapter('c1','1. 서론');"
-          c1_new = "chapter('c1','1. 서론');\ntry { doc.applyParaFormat(SEC, headingParas.get('c1'), JSON.stringify({pageBreakBefore:true,keepWithNext:true})); } catch(e) {}"
-          if c1 not in s:
-              raise SystemExit('c1 heading source pattern not found')
-          s = s.replace(c1, c1_new, 1)
+
+          # rhwp ParaShape parser requires lowercase alignment strings.
+          s = s.replace("'Justify'", "'justify'")
+          s = s.replace("'Center'", "'center'")
+          s = s.replace("'Left'", "'left'")
+          s = s.replace("'Right'", "'right'")
+
+          # Use the HWP-native paragraph pageBreakBefore property.
+          s = s.replace('let pi = 0;\nconst headingParas', 'let pi = 0;\nlet forcePageBreak = false;\nconst headingParas')
+          old_pb = """function pageBreak() {\n  const r = JSON.parse(doc.insertPageBreak(SEC, pi, 0));\n  pi = (r.paraIdx ?? (pi + 1));\n}"""
+          new_pb = """function pageBreak() {\n  forcePageBreak = true;\n}"""
+          if old_pb not in s:
+              raise SystemExit('original pageBreak source pattern not found')
+          s = s.replace(old_pb, new_pb)
+
+          old_wp = """  fmtText(idx, 0, t.length, opts);\n  fmtPara(idx, opts);\n  const len = doc.getParagraphLength(SEC, idx);"""
+          new_wp = """  fmtText(idx, 0, t.length, opts);\n  fmtPara(idx, opts);\n  if (forcePageBreak) {\n    try { doc.applyParaFormat(SEC, idx, JSON.stringify({pageBreakBefore:true})); } catch(e) {}\n    forcePageBreak = false;\n  }\n  const len = doc.getParagraphLength(SEC, idx);"""
+          if old_wp not in s:
+              raise SystemExit('writeP source pattern not found')
+          s = s.replace(old_wp, new_wp)
+
           p.write_text(s, encoding='utf-8')
           PY
 
