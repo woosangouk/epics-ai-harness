@@ -18,23 +18,49 @@ jobs:
       - name: Fetch HWP writer
         run: git clone --depth 1 https://github.com/yuyu04/hwpkit.git /tmp/hwpkit
 
-      - name: Optimize report layout for HWP
+      - name: Optimize report source
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
+
           src = Path('tmp_hwp_build/report.md')
           s = src.read_text(encoding='utf-8')
+
+          # Consolidate the two-line Korean cover title.
+          s = s.replace(
+              '# KLS LLRF Detuning 기반 Reference-Tracking\n# Cavity Tuner 제어 시스템 개발 및 검증 보고서',
+              '# KLS LLRF Detuning 기반 Reference-Tracking Cavity Tuner 제어 시스템 개발 및 검증 보고서',
+              1,
+          )
+
+          # Remove the explanatory paragraph from the cover; the same scope is
+          # documented in the introduction.
+          s = re.sub(
+              r'\n본 보고서는 V12 기술 초안의 확인된 근거를 기반으로 작성하였다\..*?구분하였다\.\n',
+              '\n', s, count=1, flags=re.S,
+          )
+
+          # Make a clean cover -> TOC -> body page sequence.
+          s = s.replace('\n**목 차**\n', '\n---PAGEBREAK---\n\n# 목 차\n', 1)
           marker = '\n# 1. 서론\n'
           if marker in s:
               pre, body = s.split(marker, 1)
+              # Remove stale manually-entered page numbers from the TOC so
+              # pagination cannot become misleading after layout refinement.
+              pre = re.sub(r'^(\s*(?:\d+(?:\.\d+)?\.?\s+.+?))\s+\d+\s*$', r'\1', pre, flags=re.M)
               body = '# 1. 서론\n' + body
               body = re.sub(r'^## (\d+\.\d+\b.*)$', r'### \1', body, flags=re.M)
               body = re.sub(r'^# (\d+\. .*)$', r'## \1', body, flags=re.M)
-              s = pre + '\n' + body
+              s = pre + '\n---PAGEBREAK---\n\n' + body
+
+          # Keep only the first metadata table on the cover. Convert subsequent
+          # technical tables to clean label/detail bullets because HWP table-row
+          # auto-height is not reliable for long mixed Korean/English content.
           lines = s.splitlines()
           out = []
           i = 0
+          table_no = 0
           while i < len(lines):
               line = lines[i]
               if line.strip().startswith('|') and line.strip().endswith('|'):
@@ -43,53 +69,94 @@ jobs:
                   while j < len(lines) and lines[j].strip().startswith('|') and lines[j].strip().endswith('|'):
                       tbl.append(lines[j])
                       j += 1
+                  table_no += 1
                   rows = [[c.strip() for c in r.strip().strip('|').split('|')] for r in tbl]
-                  n = max((len(r) for r in rows), default=0)
-                  if n > 2 and len(rows) >= 2:
-                      header = rows[0] + [''] * (n - len(rows[0]))
-                      h1 = header[0].replace('**', '')
-                      hrest = ' / '.join(x.replace('**', '') for x in header[1:] if x)
-                      out.append(f'| **{h1}** | **{hrest}** |')
-                      out.append('|---|---|')
-                      for r in rows[2:]:
-                          r = r + [''] * (n - len(r))
-                          rest = '; '.join(x for x in r[1:] if x)
-                          out.append(f'| {r[0]} | {rest} |')
-                  else:
+                  if table_no == 1:
                       out.extend(tbl)
+                  else:
+                      # Drop markdown separator row, retain header context, and
+                      # render each record as a readable bullet paragraph.
+                      data_rows = [r for k, r in enumerate(rows) if k != 1]
+                      if data_rows:
+                          header = [x.replace('**', '').strip() for x in data_rows[0]]
+                          for r in data_rows[1:]:
+                              r = r + [''] * max(0, len(header) - len(r))
+                              key = r[0].replace('**', '').strip() if r else ''
+                              details = []
+                              for idx, val in enumerate(r[1:], start=1):
+                                  val = val.replace('**', '').strip()
+                                  if not val:
+                                      continue
+                                  label = header[idx] if idx < len(header) and header[idx] else f'항목 {idx+1}'
+                                  details.append(f'{label}: {val}')
+                              if details:
+                                  out.append(f'- **{key}** — ' + '; '.join(details))
+                              elif key:
+                                  out.append(f'- {key}')
+                      out.append('')
                   i = j
               else:
                   out.append(line)
                   i += 1
+
           s = '\n'.join(out) + '\n'
           s = re.sub(r'\n{3,}', '\n\n', s)
-          Path('tmp_hwp_build/report_v105.md').write_text(s, encoding='utf-8')
+          Path('tmp_hwp_build/report_v106.md').write_text(s, encoding='utf-8')
+          PY
+
+      - name: Patch HWP writer typography and page-break support
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('/tmp/hwpkit/scripts/hwp-write.mjs')
+          s = p.read_text(encoding='utf-8')
+
+          # Reduce the cover H1 size slightly for a restrained internal-report look.
+          s = s.replace('1: { size: 2200, before: 600, after: 300 },',
+                        '1: { size: 1800, before: 450, after: 250 },')
+
+          # Recognize an explicit page-break marker as a block.
+          needle = "    if (!line.trim()) { i += 1; continue; }\n"
+          repl = needle + "    if (line.trim() === '---PAGEBREAK---') { blocks.push({ type: 'pagebreak' }); i += 1; continue; }\n"
+          s = s.replace(needle, repl, 1)
+
+          # Center H1 paragraphs only.
+          old = "  const para = { lineSpacing: LINE_SPACING, lineSpacingType: 'Percent', spacingBefore: before, spacingAfter: after };\n"
+          new = old + "  if (size === 1800 && bold) para.alignment = 'Center';\n"
+          s = s.replace(old, new, 1)
+
+          # Emit native HWP page breaks.
+          old_loop = "  if (blk.type === 'heading') {\n"
+          new_loop = "  if (blk.type === 'pagebreak') {\n    const br = JSON.parse(doc.insertPageBreak(SEC, pi, 0));\n    pi = br.paraIdx ?? (pi + 1);\n  } else if (blk.type === 'heading') {\n"
+          s = s.replace(old_loop, new_loop, 1)
+          p.write_text(s, encoding='utf-8')
           PY
 
       - name: Build HWP
         run: |
-          node /tmp/hwpkit/scripts/hwp-write.mjs tmp_hwp_build/report_v105.md KLS_LLRF_Cavity_Tuner_Internal_Report_V1.0.5.hwp
+          node /tmp/hwpkit/scripts/hwp-write.mjs tmp_hwp_build/report_v106.md KLS_LLRF_Cavity_Tuner_Internal_Report_V1.0.6.hwp
 
       - name: Round-trip read validation
         run: |
-          node /tmp/hwpkit/scripts/hwp-read.mjs KLS_LLRF_Cavity_Tuner_Internal_Report_V1.0.5.hwp > roundtrip.txt
+          node /tmp/hwpkit/scripts/hwp-read.mjs KLS_LLRF_Cavity_Tuner_Internal_Report_V1.0.6.hwp > roundtrip.txt
           test -s roundtrip.txt
           grep -q "KLS LLRF" roundtrip.txt
           grep -q "PHYTRON MCC-1" roundtrip.txt
+          grep -q "STEP_REF" roundtrip.txt
           grep -q "STOP" roundtrip.txt
 
       - name: Preview validation
         run: |
           mkdir -p preview
-          node /tmp/hwpkit/scripts/hwp-preview.mjs KLS_LLRF_Cavity_Tuner_Internal_Report_V1.0.5.hwp preview --pages 1-5
+          node /tmp/hwpkit/scripts/hwp-preview.mjs KLS_LLRF_Cavity_Tuner_Internal_Report_V1.0.6.hwp preview --pages 1-8
           test -n "$(find preview -type f | head -n 1)"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KLS_LLRF_Cavity_Tuner_Internal_Report_V1.0.5
+          name: KLS_LLRF_Cavity_Tuner_Internal_Report_V1.0.6
           path: |
-            KLS_LLRF_Cavity_Tuner_Internal_Report_V1.0.5.hwp
+            KLS_LLRF_Cavity_Tuner_Internal_Report_V1.0.6.hwp
             roundtrip.txt
             preview/
           if-no-files-found: error
