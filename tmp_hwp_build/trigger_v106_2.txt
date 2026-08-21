@@ -1,1 +1,1 @@
-trigger corrected HWP V1.0.6 build - final 2026-08-21 21:03 KST
+trigger corrected HWP V1.0.6 build - final pagination check 2026-08-21 21:08 KST
